@@ -1,0 +1,5 @@
+*.zip
+*.pth
+*.pyc
+datasets/3DMM_definition/*
+*.egg

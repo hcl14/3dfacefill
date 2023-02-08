@@ -80,10 +80,10 @@ def median(x, perctile=0.36, kernel_size=3, stride=1):
 
 class Rendering:
     """docstring for Rendering"""
-    def __init__(self, args):
+    def __init__(self, args, device):
         super(Rendering, self).__init__()
         self.args = args
-        self.device = torch.device("cuda" if (args.cuda and torch.cuda.is_available()) else "cpu")
+        self.device = device # torch.device("cuda" if (args.cuda and torch.cuda.is_available()) else "cpu")
         self.vertex_num = args.vertex_num
         self.tri_num = args.tri_num
         self.texture_size = args.texture_size
@@ -353,7 +353,11 @@ class Rendering:
         img_uvz[:,:,-1] = 0  # really not needed
 
         # Get triangle-map, barycoords and visiblity for each pixel
-        tri_map, depth, barycoords_cpp, trimap_mask = zbuffertri_batch.forward(img_uvz, self.tri.float(), visible_tri, self.output_size)
+        # here must be cuda
+        #tri_map, depth, barycoords_cpp, trimap_mask = zbuffertri_batch.forward(img_uvz, self.tri.float(), visible_tri, self.output_size)
+        tri_map, depth, barycoords_cpp, trimap_mask = zbuffertri_batch.forward(img_uvz.cuda(), self.tri.float().cuda(), visible_tri.cuda(), self.output_size)
+        
+        tri_map, depth, barycoords_cpp, trimap_mask = tri_map.to(self.device), depth.to(self.device), barycoords_cpp.to(self.device), trimap_mask.to(self.device)
         depth[~trimap_mask.bool()] = 0
 
         # correction for faulty zbuffer mappings
@@ -404,7 +408,12 @@ class Rendering:
         img_uvz[:,:,-1] = 0  # really not needed
 
         # Get triangle-map, barycoords and visiblity for each pixel
-        tri_map, depth, barycoords_cpp, trimap_mask = zbuffertri_batch.forward(img_uvz, self.tri.float(), visible_tri, self.output_size)
+        # must be cuda
+        #tri_map, depth, barycoords_cpp, trimap_mask = zbuffertri_batch.forward(img_uvz, self.tri.float(), visible_tri, self.output_size)
+        tri_map, depth, barycoords_cpp, trimap_mask = zbuffertri_batch.forward(img_uvz.cuda(), self.tri.float().cuda(), visible_tri.cuda(), self.output_size)
+        
+        tri_map, depth, barycoords_cpp, trimap_mask = tri_map.to(self.device), depth.to(self.device), barycoords_cpp.to(self.device), trimap_mask.to(self.device)
+        
         depth[~trimap_mask.bool()] = 0
 
         # correction for faulty zbuffer mappings

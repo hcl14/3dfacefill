@@ -10,7 +10,7 @@ import plugins
 import numpy as np
 from rendering import *
 import torch.nn.functional as F
-from torch.utils.tensorboard import SummaryWriter
+#from torch.utils.tensorboard import SummaryWriter
 from pytorch3d.transforms import euler_angles_to_matrix
 import utils
 import morphology

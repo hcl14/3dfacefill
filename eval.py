@@ -10,7 +10,7 @@ import plugins
 import numpy as np
 from rendering import *
 import torch.nn.functional as F
-from torch.utils.tensorboard import SummaryWriter
+#from torch.utils.tensorboard import SummaryWriter
 from pytorch3d.transforms import euler_angles_to_matrix
 import utils
 import morphology
@@ -49,7 +49,7 @@ def get_psnr(mse):
     return 20*np.log10(255.0 / np.sqrt(mse))
 
 class Evaluator:
-    def __init__(self, args, model, modelO, modelR, renderer, tb_writer=None):
+    def __init__(self, args, model, modelO, modelR, renderer, device, tb_writer=None):
         self.args = args
         self.modelE, self.modelDS, self.modelDT = model[:3]
         self.use_conf = args.use_conf
@@ -67,7 +67,7 @@ class Evaluator:
 
         self.cuda = args.cuda
         self.ngpu = args.ngpu
-        self.device = torch.device("cuda" if (self.cuda and torch.cuda.is_available()) else "cpu")
+        self.device = device #torch.device("cuda" if (self.cuda and torch.cuda.is_available()) else "cpu")
         self.devices = []
         for idx in range(self.ngpu):
             self.devices.append(torch.device("cuda:{}".format(idx)))
@@ -252,6 +252,8 @@ class Evaluator:
 
             complete_blended_output[:,:,16:240,16:240] = image_crop * (1 - blend_mask) + recon_output * blend_mask
             blended_output[:,:,16:240,16:240] = image_crop * (1-occl_crop) + recon_output * occl_crop
+            
+            print("1")
 
             self.losses['PSNR'] = self.get_psnr(blended_output.detach(), images.detach())
             self.losses['SSIM'] = self.get_ssim(blended_output.detach(), images.detach())
@@ -274,22 +276,24 @@ class Evaluator:
                 bar.next()
                 end = time.time()
 
+            print("Saving")
             for j in range(batch_size):
-                if occ_percent[j] > 20:
+                    #if occ_percent[j] > 20:
                     # save_path = os.path.join(self.celebamask_path, '{}'.format(i*self.batch_size+j))
                     name_split = filenames[j].split('/')
                     save_path = os.path.join(self.output_dir, name_split[-1].split('.')[0]) # name_split[-2], name_split[-1]
                     if not os.path.exists(save_path):
                         os.makedirs(save_path)
+                    save_image(image_mask[j].detach().cpu(), os.path.join(save_path, 'image_mask.jpg'), normalize=True)
                     save_image(images[j].detach().cpu(), os.path.join(save_path, 'original.jpg'), normalize=True)
                     save_image(image_in_full[j].detach().cpu(), os.path.join(save_path, 'input.jpg'), normalize=True)
                     save_image(occl_gt[j].detach().cpu(), os.path.join(save_path, 'mask.jpg'))
                     save_image(blended_output[j].detach().cpu(), os.path.join(save_path, 'output.jpg'), normalize=True)
                     save_image(complete_blended_output[j].detach().cpu(), os.path.join(save_path, 'complete_output.jpg'), normalize=True)
                     save_image(tex_out_uv[j].detach().cpu(), os.path.join(save_path, 'texture_out.jpg'), normalize=True)
-                    np.save(os.path.join(save_path, 'shape.npy'), shape_out_full[j].view(-1,3).detach().cpu().numpy())
-                    with open(os.path.join(save_path, 'occ_percent.txt'), 'w') as occ_file:
-                        occ_file.write('{}'.format(occ_percent[j]))
+                    #np.save(os.path.join(save_path, 'shape.npy'), shape_out_full[j].view(-1,3).detach().cpu().numpy())
+                    #with open(os.path.join(save_path, 'occ_percent.txt'), 'w') as occ_file:
+                    #    occ_file.write('{}'.format(occ_percent[j]))
 
         if self.log_type == 'progressbar':
             bar.finish()

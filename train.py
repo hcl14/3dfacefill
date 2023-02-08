@@ -12,7 +12,7 @@ import numpy as np
 from rendering import *
 from models import UnetSeg, VGG_16, UnetSelfAttnConf32, Discriminator_localglobal
 import torch.nn.functional as F
-from torch.utils.tensorboard import SummaryWriter
+#from torch.utils.tensorboard import SummaryWriter
 from pytorch3d.transforms import euler_angles_to_matrix
 from checkpoints import Checkpoints
 import utils
@@ -58,7 +58,7 @@ def weights_init(m):
         pass
 
 class Trainer:
-    def __init__(self, args, model, modelO, criterion):
+    def __init__(self, args, model, modelO, criterion, device):
         self.args = args
         self.modelE, self.modelDS, self.modelDT = model[:3]
         self.use_conf = args.use_conf
@@ -68,7 +68,7 @@ class Trainer:
         self.save_results = args.save_results
         self.checkpoint = Checkpoints(args)
         args.resolution = (224, 224)
-        self.renderer = Rendering(args)
+        self.renderer = Rendering(args, device)
         self.resume = args.resume
 
         self.env = args.env
@@ -78,10 +78,14 @@ class Trainer:
 
         self.cuda = args.cuda
         self.ngpu = args.ngpu
-        self.device = torch.device("cuda" if (self.cuda and torch.cuda.is_available()) else "cpu")
+        self.device = device #torch.device("cuda" if (self.cuda and torch.cuda.is_available()) else "cpu")
         self.devices = []
-        for idx in range(self.ngpu):
-            self.devices.append(torch.device("cuda:{}".format(idx)))
+        
+        if device == 'cpu':
+            self.devices = [device]
+        else:
+            for idx in range(self.ngpu):
+                self.devices.append(torch.device("cuda:{}".format(idx)))
 
         self.is_using_symmetry = args.is_using_symmetry
         self.is_using_frecon = args.is_using_frecon
@@ -161,7 +165,7 @@ class Trainer:
                 self.print_formatter += ' | ' + item + ' {:.2f}'
             self.print_formatter += ' | lr: {:.0e}'
 
-        self.tb_writer = SummaryWriter(log_dir=args.logs_dir)
+        #self.tb_writer = SummaryWriter(log_dir=args.logs_dir)
         self.losses = {}
         self.setupParaStat()
         self.setupReconstructionModel()
@@ -501,7 +505,7 @@ class Trainer:
                 masked_tex_in = tex_gt_uv.clone()
                 masked_tex_in[~occl_uv.expand(-1,3,-1,-1).bool()] = masked_tex_in[~occl_uv.expand(-1,3,-1,-1).bool()]*0.6 + 0.4
                 tex_in_uv = tex_gt_uv * occl_uv
-
+                '''
                 self.tb_writer.add_scalar('Train/Recon_Loss', recon_loss.item(), epoch*len(dataloader)+i)
                 self.tb_writer.add_scalar('Train/Recon_Loss_Image', recon_loss_image.item(), epoch*len(dataloader)+i)
                 self.tb_writer.add_scalar('Train/SymLoss', symmetry_loss.item(), epoch*len(dataloader)+i)
@@ -538,6 +542,7 @@ class Trainer:
                 self.tb_writer.add_images('Train/Gate1_2', gate1[:8,21:22].detach().cpu())
                 self.tb_writer.add_images('Train/Gate2_1', gate2[:8,5:6].detach().cpu())
                 self.tb_writer.add_images('Train/Gate2_2', gate2[:8,37:38].detach().cpu())
+                '''
 
         if self.optimizerR.param_groups[-1]['lr'] > 1e-7:
             self.schedulerR.step()
